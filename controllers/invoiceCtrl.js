@@ -11,9 +11,27 @@ const addInvoiceController = async (req, res) => {
         .send({ success: false, message: "Invoice Id Already Found" });
     }
 
-    let iLength = await invoiceModel.findOne().sort({ createdAt: -1 }).select("invoiceId");
-    iLength = iLength.invoiceId
-    const newId = `IN${parseInt(iLength.replace("IN", ""), 10) + 1}`
+    const result = await invoiceModel.aggregate([
+      {
+        $project: {
+          numericPart: { $toInt: { $substr: ["$invoiceId", 2, -1] } }, // Extract numeric part
+        },
+      },
+      {
+        $sort: { numericPart: -1 }, // Sort by the numeric part in descending order
+      },
+      { $limit: 1 }, // Get the highest value
+    ]);
+    
+    let newId;
+    if (result.length > 0) {
+      const latestNumeric = result[0].numericPart; // Get the highest numeric value
+      newId = `IN${latestNumeric + 1}`; // Increment and create new ID
+    } else {
+      // If no records exist, start with the first ID
+      newId = "IN1";
+    }
+    
     const newInvoice = new invoiceModel({
       ...req.body,
       invoiceId: newId,

@@ -4,8 +4,8 @@ const {
   updateEsimateController,
   getAllEsimateController,
   getEsimateByIdController,
-  getAllEstimateHistoryController,
-  deleteEstimateHistoryController,
+  // getAllEstimateHistoryController,
+  // deleteEstimateHistoryController,
 } = require("../controllers/estimateCtrl");
 
 // router object
@@ -16,7 +16,7 @@ router.post("/update-estimate", updateEsimateController);
 router.get("/get-all-estimate", getAllEsimateController);
 router.post("/get-estimate-by-id", getEsimateByIdController);
 // ESTIMATE HISTORY
-router.get("/get-all-estimate-history", getAllEstimateHistoryController);
-router.post("/delete-est-history", deleteEstimateHistoryController);
+// router.get("/get-all-estimate-history", getAllEstimateHistoryController);
+// router.post("/delete-est-history", deleteEstimateHistoryController);
 
 module.exports = router;

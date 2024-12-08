@@ -10,9 +10,28 @@ const addQuotationController = async (req, res) => {
         .status(201)
         .send({ success: false, message: "Quotation Id Already Found" });
     }
-    let qLength = await quotationModel.findOne().sort({ createdAt: -1 });
-    qLength = qLength.quotationId
-    const newId = `QT${parseInt(qLength.replace("QT", ""), 10) + 1}`
+    
+    const result = await quotationModel.aggregate([
+      {
+        $project: {
+          numericPart: { $toInt: { $substr: ["$quotationId", 2, -1] } }, // Extract numeric part
+        },
+      },
+      {
+        $sort: { numericPart: -1 }, // Sort by numeric part in descending order
+      },
+      { $limit: 1 }, // Get the highest value
+    ]);
+    
+    let newId;
+    if (result.length > 0) {
+      const latestNumeric = result[0].numericPart; // Get the highest numeric value
+      newId = `QT${latestNumeric + 1}`; // Increment and create new ID
+    } else {
+      // If no records exist, start with the first ID
+      newId = "QT1";
+    }
+
     const newInvoice = new quotationModel({
       ...req.body,
       quotationId: newId,

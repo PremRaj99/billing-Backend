@@ -1,5 +1,5 @@
 const estimateModel = require("../models/estimateModel");
-const estimateHistoryModel = require("../models/estimateHistoryModel");
+// const estimateHistoryModel = require("../models/estimateHistoryModel");
 const ReceivePayment = require("../models/receivePaymentModel");
 
 const addEstimateController = async (req, res) => {
@@ -19,27 +19,45 @@ const addEstimateController = async (req, res) => {
       req.body.balancePayment = 0;
     }
 
-    let iLength = await estimateModel.findOne().sort({ createdAt: -1 });
-    iLength = iLength.estimateId;
-    const newId = `ES${parseInt(iLength.replace("ES", ""), 10) + 1}`
+    const result = await estimateModel.aggregate([
+      {
+        $project: {
+          numericPart: { $toInt: { $substr: ["$estimateId", 2, -1] } }, // Extract numeric part
+        },
+      },
+      {
+        $sort: { numericPart: -1 }, // Sort by the numeric part in descending order
+      },
+      { $limit: 1 }, // Get the highest value
+    ]);
+
+    let newId;
+    if (result.length > 0) {
+      const latestNumeric = result[0].numericPart; // Get the highest numeric value
+      newId = `ES${latestNumeric + 1}`; // Increment and create new ID
+    } else {
+      // If no records exist, start with the first ID
+      newId = "ES1";
+    }
+    
     const newInvoice = new estimateModel({
       ...req.body,
       estimateId: newId,
     });
     await newInvoice.save();
-    const newEstimateHistory = new estimateHistoryModel({
-      ...req.body,
-      discount: req.body.discount,
-      paymentGiven: req.body.advancePayment,
-      estimateId: newId,
-    });
-    await newEstimateHistory.save();
+    // const newEstimateHistory = new estimateHistoryModel({
+    //   ...req.body,
+    //   discount: req.body.discount,
+    //   paymentGiven: req.body.advancePayment,
+    //   estimateId: newId,
+    // });
+    // await newEstimateHistory.save();
 
     if (newInvoice.advancePayment > 0) {
       const payment = await ReceivePayment.create({
         estimateId: newInvoice.id,
         paymentAmount: newInvoice.advancePayment,
-        paymentMethod,
+        paymentMethod: req.body.paymentMethod || "phonepe",
         paymentDate: newInvoice.createdAt,
       });
     }
@@ -82,16 +100,16 @@ const updateEsimateController = async (req, res) => {
         .send({ success: false, message: "Failed to update" });
     }
 
-    const paid =
-      parseInt(req.body.advancePayment) - parseInt(invoice.advancePayment);
+    // const paid =
+    //   parseInt(req.body.advancePayment) - parseInt(invoice.advancePayment);
 
-    const newEstimateHistory = new estimateHistoryModel({
-      ...req.body,
-      discount: req.body.discount,
-      paymentGiven: paid,
-      updatedAt: req.body.invoice.createdAt,
-    });
-    await newEstimateHistory.save();
+    // const newEstimateHistory = new estimateHistoryModel({
+    //   ...req.body,
+    //   discount: req.body.discount,
+    //   paymentGiven: paid,
+    //   updatedAt: req.body.invoice.createdAt,
+    // });
+    // await newEstimateHistory.save();
 
     return res
       .status(200)
@@ -148,62 +166,61 @@ const getEsimateByIdController = async (req, res) => {
   }
 };
 
-const getAllEstimateHistoryController = async (req, res) => {
-  try {
-    const invoice = await estimateHistoryModel.find({});
-    if (invoice.length === 0) {
-      return res
-        .status(201)
-        .send({ success: false, message: "No Estimate History Found" });
-    }
-    return res.status(200).send({
-      success: true,
-      message: "Estimate History Fetched Success",
-      data: invoice,
-    });
-  } catch (error) {
-    return res.status(500).send({
-      message: error.message,
-      success: false,
-    });
-  }
-};
+// const getAllEstimateHistoryController = async (req, res) => {
+//   try {
+//     const invoice = await estimateHistoryModel.find({});
+//     if (invoice.length === 0) {
+//       return res
+//         .status(201)
+//         .send({ success: false, message: "No Estimate History Found" });
+//     }
+//     return res.status(200).send({
+//       success: true,
+//       message: "Estimate History Fetched Success",
+//       data: invoice,
+//     });
+//   } catch (error) {
+//     return res.status(500).send({
+//       message: error.message,
+//       success: false,
+//     });
+//   }
+// };
 
-const deleteEstimateHistoryController = async (req, res) => {
-  try {
-    const invoice = await estimateHistoryModel.findOne({ _id: req.body.id });
-    if (!invoice) {
-      return res
-        .status(201)
-        .send({ success: false, message: "No Estimate History Found" });
-    }
-    const deleteHistory = await estimateHistoryModel.findOneAndDelete({
-      _id: req.body.id,
-    });
-    if (!deleteHistory) {
-      return res.status(202).send({
-        success: false,
-        message: "Failed to delete",
-      });
-    }
-    return res.status(200).send({
-      success: true,
-      message: "Estimate History Deleted",
-    });
-  } catch (error) {
-    return res.status(500).send({
-      message: error.message,
-      success: false,
-    });
-  }
-};
-
+// const deleteEstimateHistoryController = async (req, res) => {
+//   try {
+//     const invoice = await estimateHistoryModel.findOne({ _id: req.body.id });
+//     if (!invoice) {
+//       return res
+//         .status(201)
+//         .send({ success: false, message: "No Estimate History Found" });
+//     }
+//     const deleteHistory = await estimateHistoryModel.findOneAndDelete({
+//       _id: req.body.id,
+//     });
+//     if (!deleteHistory) {
+//       return res.status(202).send({
+//         success: false,
+//         message: "Failed to delete",
+//       });
+//     }
+//     return res.status(200).send({
+//       success: true,
+//       message: "Estimate History Deleted",
+//     });
+//   } catch (error) {
+//     return res.status(500).send({
+//       message: error.message,
+//       success: false,
+//     });
+//   }
+// };
 
 module.exports = {
   addEstimateController,
   updateEsimateController,
   getAllEsimateController,
   getEsimateByIdController,
-  getAllEstimateHistoryController,
-  deleteEstimateHistoryController,
+  // getAllEstimateHistoryController,
+  // deleteEstimateHistoryController,
 };
